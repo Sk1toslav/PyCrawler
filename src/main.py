@@ -1,5 +1,6 @@
 import sys
 import pygame
+from procgen import generate_dungeon
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
@@ -11,18 +12,8 @@ GRID_HEIGHT = SCREEN_HEIGHT // TILE_SIZE
 COLOR_BG = (20, 20, 20)
 COLOR_GRID = (40, 40, 40)
 COLOR_WALL = (100, 100, 100)
-COLOR_PLAYER = (50, 205, 50)
-
-TEST_MAP = [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-]
+COLOR_PLAYER = (134, 206, 235)
+COLOR_STAIRS = (255, 215, 0)
 
 
 class Player:
@@ -55,7 +46,15 @@ def main():
     pygame.display.set_caption("PyCrawler - Milestone 1")
     clock = pygame.time.Clock()
 
-    player = Player(x=1, y=1)
+    game_map, player_start, stairs_pos = generate_dungeon(
+        max_rooms = 10,
+        room_min_size = 4,
+        room_max_size = 8,
+        map_width = GRID_WIDTH,
+        map_height = GRID_HEIGHT
+    )
+
+    player = Player(x=player_start[0], y=player_start[1])
 
     running = True
     while running:
@@ -74,11 +73,21 @@ def main():
                 elif event.key in (pygame.K_d, pygame.K_RIGHT):
                     dx = 1
 
-                player.move(dx, dy, TEST_MAP)
+                player.move(dx, dy, game_map)
+
+                if (player.x, player.y) == stairs_pos:
+                    game_map, player_start, stairs_pos = generate_dungeon(
+                        max_rooms=10,
+                        room_min_size=4,
+                        room_max_size=8,
+                        map_width=GRID_WIDTH,
+                        map_height=GRID_HEIGHT,
+                    )
+                    player.x, player.y = player_start
 
         screen.fill(COLOR_BG)
 
-        for row_idx, row in enumerate(TEST_MAP):
+        for row_idx, row in enumerate(game_map):
             for col_idx, tile in enumerate(row):
                 if tile == 1:
                     wall_rect = pygame.Rect(
@@ -88,6 +97,14 @@ def main():
                         TILE_SIZE
                     )
                     pygame.draw.rect(screen, COLOR_WALL, wall_rect)
+
+        stairs_rect = pygame.Rect(
+            stairs_pos[0] * TILE_SIZE,
+            stairs_pos[1] * TILE_SIZE,
+            TILE_SIZE,
+            TILE_SIZE
+        )
+        pygame.draw.rect(screen, COLOR_STAIRS, stairs_rect)
 
         for x in range(0, SCREEN_WIDTH, TILE_SIZE):
             pygame.draw.line(screen, COLOR_GRID, (x, 0), (x, SCREEN_HEIGHT))
