@@ -1,6 +1,7 @@
 import sys
 import pygame
 from procgen import generate_dungeon
+from fov import compute_fov
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
@@ -9,10 +10,13 @@ TILE_SIZE = 32
 GRID_WIDTH = SCREEN_WIDTH // TILE_SIZE
 GRID_HEIGHT = SCREEN_HEIGHT // TILE_SIZE
 
-COLOR_BG = (20, 20, 20)
-COLOR_GRID = (40, 40, 40)
-COLOR_WALL = (100, 100, 100)
-COLOR_PLAYER = (134, 206, 235)
+COLOR_BG = (10, 10, 10)
+COLOR_GRID = (30, 30, 30)
+COLOR_WALL_VISIBLE = (120, 120, 120)
+COLOR_WALL_EXPLORED = (50, 50, 55)
+COLOR_FLOOR_VISIBLE = (35, 35, 40)
+COLOR_FLOOR_EXPLORED = (20, 20, 23)
+COLOR_PLAYER = (50, 205, 50)
 COLOR_STAIRS = (255, 215, 0)
 
 
@@ -43,7 +47,7 @@ class Player:
 def main():
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("PyCrawler - Milestone 1")
+    pygame.display.set_caption("PyCrawler")
     clock = pygame.time.Clock()
 
     game_map, player_start, stairs_pos = generate_dungeon(
@@ -55,6 +59,10 @@ def main():
     )
 
     player = Player(x=player_start[0], y=player_start[1])
+
+    explored_tiles: set[tuple[int, int]] = set()
+    visible_tiles = compute_fov(game_map, player.x, player.y)
+    explored_tiles.update(visible_tiles)
 
     running = True
     while running:
@@ -84,27 +92,41 @@ def main():
                         map_height=GRID_HEIGHT,
                     )
                     player.x, player.y = player_start
+                    explored_tiles = set()
+
+                visible_tiles = compute_fov(game_map, player.x, player.y)
+                explored_tiles.update(visible_tiles)
 
         screen.fill(COLOR_BG)
 
+        # 1. Vykreslení mapy podle stavu viditelnosti
         for row_idx, row in enumerate(game_map):
             for col_idx, tile in enumerate(row):
-                if tile == 1:
-                    wall_rect = pygame.Rect(
-                        col_idx * TILE_SIZE,
-                        row_idx * TILE_SIZE,
-                        TILE_SIZE,
-                        TILE_SIZE
-                    )
-                    pygame.draw.rect(screen, COLOR_WALL, wall_rect)
+                pos = (col_idx, row_idx)
 
-        stairs_rect = pygame.Rect(
-            stairs_pos[0] * TILE_SIZE,
-            stairs_pos[1] * TILE_SIZE,
-            TILE_SIZE,
-            TILE_SIZE
-        )
-        pygame.draw.rect(screen, COLOR_STAIRS, stairs_rect)
+                if pos in visible_tiles:
+                    color = COLOR_WALL_VISIBLE if tile == 1 else COLOR_FLOOR_VISIBLE
+                elif pos in explored_tiles:
+                    color = COLOR_WALL_EXPLORED if tile == 1 else COLOR_FLOOR_EXPLORED
+                else:
+                    continue
+
+                tile_rect = pygame.Rect(
+                    col_idx * TILE_SIZE,
+                    row_idx * TILE_SIZE,
+                    TILE_SIZE,
+                    TILE_SIZE,
+                )
+                pygame.draw.rect(screen, color, tile_rect)
+
+        if stairs_pos in explored_tiles:
+            stairs_rect = pygame.Rect(
+                stairs_pos[0] * TILE_SIZE,
+                stairs_pos[1] * TILE_SIZE,
+                TILE_SIZE,
+                TILE_SIZE,
+            )
+            pygame.draw.rect(screen, COLOR_STAIRS, stairs_rect)
 
         for x in range(0, SCREEN_WIDTH, TILE_SIZE):
             pygame.draw.line(screen, COLOR_GRID, (x, 0), (x, SCREEN_HEIGHT))
